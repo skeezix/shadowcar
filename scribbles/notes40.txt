@@ -27,6 +27,8 @@ raspberry-pi model b:
 
 atmega644:
   - or which chip? more pins?
+    -> atmega1284 .. have 4 in stock; 2 serial ports!
+    -> or use 644->MAX232 to get 2 serial ports?
   - burner pins:
     - reset 1
     - power 4
