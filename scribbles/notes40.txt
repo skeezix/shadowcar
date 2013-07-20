@@ -1,1 +1,52 @@
-foo
+todo:
+  - linux read cam .. works at all grab images?
+    - webcam has LED lights?
+  - receiver is on micro or r-pi
+  - read receiver from mcu
+  - drive servo from mcu
+  - range finder .. works?
+  - protocol between r-pi and mcu
+  
+
+raspberry-pi model b:
+  - peripherals:
+    - gpio pins:
+    --> gpio serial 3.3V: http://www.elinux.org/RPi_Serial_Connection
+  - goals:
+    + lcd panel via composite
+    + wifi remote control
+    + communicate with mcu (2 way)
+    + webcam
+    - optional usb hub: -> 2.4ghz keyboard/thingy transceiver
+
+  composite out: lcd
+  usb1: wifi
+  usb2: webcam
+  i2c:
+    -> mcu
+
+atmega644:
+  - or which chip? more pins?
+  - burner pins:
+    - reset 1
+    - power 4
+    - aref  1
+    - xtal  2 --> total 8 burners
+    - isp   3 (freebies)
+  - peripherals:
+    - PWM out pins:
+    - ADC in pins:
+    - i2c:
+    - total IO pins:
+  - goals:
+    + ISP -> 3 pins (freebies)
+    + text lcd -> 6 pins
+    + RC receiver -> 1 pin
+    - optional: speed sensor
+    - optional: charger, charge sensors (heat, coltage, amperage)
+    + 2 servo for camera -> 2 pins
+    - optional 1 servo for range finder
+    + range finder - 1pin
+    + direct motor driver (sabertooth) -> simple serial mode .. 1 pin
+
+  == total pins needed:
