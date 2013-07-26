@@ -1,3 +1,9 @@
+
+Note on chip choice:
+  -> atmega1284 seemed a better choice to start with (2 uart serials yay!) but toolchain pain made it
+     annoying (unless having 1284p which I don't have handy.) Go back to old reliable 644 instead (only
+     1 uart serial), but can talk to r-pi via i2c instead or bitbang it..)
+
 todo:
   - linux read cam .. works at all grab images?
     - webcam has LED lights?
@@ -25,10 +31,7 @@ raspberry-pi model b:
   i2c:
     -> mcu
 
-atmega644:
-  - or which chip? more pins?
-    -> atmega1284 .. have 4 in stock; 2 serial ports!
-    -> or use 644->MAX232 to get 2 serial ports?
+atmega1284 (now atmega644):
   - burner pins:
     - reset 1
     - power 4
@@ -36,6 +39,7 @@ atmega644:
     - xtal  2 --> total 8 burners
     - isp   3 (freebies)
   - peripherals:
+    - usart pins: 1284->2 usarts!
     - PWM out pins:
     - ADC in pins:
     - i2c:
@@ -43,6 +47,12 @@ atmega644:
   - goals:
     + ISP -> 3 pins (freebies)
     + text lcd -> 6 pins
+      = p1 -> lcd RS pin 4
+      = p2 -> lcd EN pin 6
+      = p6 -> lcd D7 pin 14
+      = p5    lcd D6 pin 13
+      = p4    lcd D6 pin 12
+      = p3    lcd D6 pin 11
     + RC receiver -> 1 pin
     - optional: speed sensor
     - optional: charger, charge sensors (heat, coltage, amperage)
