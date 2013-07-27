@@ -14,7 +14,6 @@ int main( void )        __attribute__((OS_main));
 #define F_CPU   XTAL
 #include <util/delay.h>
 
-
 #define	LCD_D4		SBIT( PORTC, 2 )
 #define	LCD_DDR_D4	SBIT( DDRC, 2 )
 
@@ -33,5 +32,10 @@ int main( void )        __attribute__((OS_main));
 #define	LCD_E0		SBIT( PORTC, 1 )
 #define	LCD_DDR_E0	SBIT( DDRC, 1 )
 
+typedef enum {
+  el_nil = 0,
+  el_x = 1,
+  el_y = 2,
+} elevon_e;
 
 #endif
