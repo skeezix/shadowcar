@@ -1,12 +1,22 @@
-#include <avr/io.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "main.h"
+#include <avr/io.h>
+#include <avr/interrupt.h>   // include interrupt support
 #include "lcd_drv.h"
 
 // adafruit lcd wiring tutorial: http://learn.adafruit.com/character-lcds/wiring-a-character-lcd
 // install path: /usr/lib/avr/include/avr
+
+// globals: timer
+volatile unsigned int g_timer_us = 0; // will overflow and cycle after 6 seconds
+volatile unsigned int g_time_s = 0;   // will overflow after 16 hours
+volatile unsigned int _g_time_us_tick = 0; // internal ticker to count seconds passage; ms accrue since last sec bump
+
+// globals: receiver
+volatile unsigned char g_ch1_duration = 0; // us that last pwm was at (11-19, 15 is at rest) 11left<->right
+volatile unsigned char g_ch2_duration = 0; // us that last pwm was at (11-19, 15 is at rest) up<->down
 
 int main( void )
 {
@@ -19,6 +29,56 @@ int main( void )
   // LCD
   lcd_init();
 
+  // enable a timer so we can measure passage of time
+  // Given: 20MHz clock
+  // --> if we want resolution of ms (1/1000th second) .. actually, we want us (1/10th of a ms) so we can measure partial ms
+  // --> and we have 1/20000000 clock resolution
+  // -----> 2000 ticks will get us there (20,000 will get us ms)
+  //
+  // Goal: Use CTC interupt mode (CTC -> Clear on Timer Compare)
+  // So a compare matches, it clears to zero and triggers interupt
+  TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode 
+  OCR1A = 2000; // number to compare against
+  TIMSK1 |= (1 << OCIE1A); // Enable CTC interrupt 
+  TCCR1B |= (1 << CS10); // Set up timer , with no prescaler (works at full MHz of clock)
+
+#if 1 // set up pin change interupt
+  EICRA &= ~ ( (1 << ISC01) | (1 << ISC01) ); // clear ISC01+ISC00
+  EICRA |= ( (1 << ISC00) ); // 00 set and 01 unset means any edge will make event
+  PCMSK0 |= ( (1 << PCINT0) | (1 << PCINT1) ); // Pins to monitor: PA0 and PA1
+  PCICR |= (1 << PCIE0); // PA is monitored
+#endif
+
+  // setup done - kick up interupts
+  sei();
+
+#if 1 // timer test .. show per-second counter update on lcd
+  if ( 1 ) {
+    unsigned int last_sec = g_time_s;
+
+    while(1) {
+
+      if ( g_time_s != last_sec ) {
+        sprintf ( textbuf, "%2d %2d     ", g_ch1_duration, g_ch2_duration );
+        lcd_xy ( 0, 0 );
+        lcd_puts( textbuf ); // display number right adjusted
+
+        sprintf ( textbuf, "timer %2d #", g_time_s );
+        lcd_xy ( 0, 1 );
+        lcd_puts( textbuf ); // display number right adjusted
+
+        last_sec = g_time_s;
+      }
+
+    } // while forever
+
+  } // if 1
+#endif
+
+#if 1 // RC receiver -> PWM -> pulse edge detection via interupt .. approach
+#endif
+
+#if 0 // ADC approach for RC receiver
   // ADC
   // -> ADC prescaler to 128 (20MHz div by 128 is 156KHz which is within the 50-200 required)
   ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);
@@ -54,7 +114,6 @@ int main( void )
   /* do something useful..
    */
 
-#if 1
   unsigned char counter = 0;
   unsigned char low, hi, low1;
   char dir [ 5 ] = { '\0', '\0', '\0', '\0', '\0' };
@@ -127,4 +186,57 @@ int main( void )
   while(1);
 
   return ( 0 );
+}
+
+// ISR for timer1 ticking away
+ISR(TIMER1_COMPA_vect)
+{
+  // bump ms timer counter
+  g_timer_us++;
+
+  // bump 'seconds' counter as well
+  _g_time_us_tick++;
+  if ( _g_time_us_tick > 10000 ) {
+    _g_time_us_tick = 0;
+    g_time_s ++;
+  }
+
+} // ISR for timer1
+
+// ISR for pin change events
+volatile unsigned int g_ch1_rose = 0; // time that channel1 rose
+volatile unsigned int g_ch2_rose = 0; // time that channel1 rose
+ISR(PCINT0_vect)
+{
+  unsigned int timer = g_timer_us;
+
+  // CH1: edge has gone up, or down?
+  if ( PINA & ( 1 << PA0 ) ) {
+    // edge has gone high
+    g_ch1_rose = timer;
+  } else {
+    // handle overflow too..
+    if ( g_ch1_rose < timer ) {
+      g_ch1_duration = timer - g_ch1_rose;
+    } else {
+      // overflow.. ignore result, who cares if we miss one once in awhile
+    }
+  }
+
+  // COPY PASTE from above, changing channel
+  // CH2: edge has gone up, or down?
+  if ( PINA & ( 1 << PA1 ) ) {
+    // edge has gone high
+    g_ch2_rose = timer;
+  } else {
+    // handle overflow too..
+    if ( g_ch2_rose < timer ) {
+      g_ch2_duration = timer - g_ch2_rose;
+    } else {
+      // overflow.. ignore result, who cares if we miss one once in awhile
+    }
+  }
+
+  // update last state
+  //g_pin_state = PINA;
 }
