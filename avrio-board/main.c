@@ -15,8 +15,8 @@ volatile unsigned int g_time_s = 0;   // will overflow after 16 hours
 volatile unsigned int _g_time_us_tick = 0; // internal ticker to count seconds passage; ms accrue since last sec bump
 
 // globals: receiver
-volatile unsigned char g_ch1_duration = 0; // us that last pwm was at (11-19, 15 is at rest) 11left<->right
-volatile unsigned char g_ch2_duration = 0; // us that last pwm was at (11-19, 15 is at rest) up<->down
+volatile unsigned char g_ch1_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) 11left<->right
+volatile unsigned char g_ch2_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) up<->down
 
 int main( void )
 {
@@ -206,37 +206,47 @@ ISR(TIMER1_COMPA_vect)
 // ISR for pin change events
 volatile unsigned int g_ch1_rose = 0; // time that channel1 rose
 volatile unsigned int g_ch2_rose = 0; // time that channel1 rose
+volatile unsigned char _g_pin_state = 0; // so we can know which pins changed since last interupt
 ISR(PCINT0_vect)
 {
   unsigned int timer = g_timer_us;
+  unsigned char delta = _g_pin_state ^ PINA;
 
-  // CH1: edge has gone up, or down?
-  if ( PINA & ( 1 << PA0 ) ) {
-    // edge has gone high
-    g_ch1_rose = timer;
-  } else {
-    // handle overflow too..
-    if ( g_ch1_rose < timer ) {
-      g_ch1_duration = timer - g_ch1_rose;
+  if ( delta & ( 1 << PA0 ) ) {
+
+    // CH1: edge has gone up, or down?
+    if ( PINA & ( 1 << PA0 ) ) {
+      // edge has gone high
+      g_ch1_rose = timer;
     } else {
-      // overflow.. ignore result, who cares if we miss one once in awhile
+      // handle overflow too..
+      if ( g_ch1_rose < timer ) {
+        g_ch1_duration = timer - g_ch1_rose;
+      } else {
+        // overflow.. ignore result, who cares if we miss one once in awhile
+      }
     }
-  }
+
+  } // PA0 changed?
 
   // COPY PASTE from above, changing channel
-  // CH2: edge has gone up, or down?
-  if ( PINA & ( 1 << PA1 ) ) {
-    // edge has gone high
-    g_ch2_rose = timer;
-  } else {
-    // handle overflow too..
-    if ( g_ch2_rose < timer ) {
-      g_ch2_duration = timer - g_ch2_rose;
+  if ( delta & ( 1 << PA1 ) ) {
+
+    // CH2: edge has gone up, or down?
+    if ( PINA & ( 1 << PA1 ) ) {
+      // edge has gone high
+      g_ch2_rose = timer;
     } else {
-      // overflow.. ignore result, who cares if we miss one once in awhile
+      // handle overflow too..
+      if ( g_ch2_rose < timer ) {
+        g_ch2_duration = timer - g_ch2_rose;
+      } else {
+        // overflow.. ignore result, who cares if we miss one once in awhile
+      }
     }
-  }
+
+  } // PA1 changed?
 
   // update last state
-  //g_pin_state = PINA;
+  _g_pin_state = PINA;
 }
