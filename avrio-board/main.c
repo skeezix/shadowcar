@@ -4,7 +4,9 @@
 #include "main.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>   // include interrupt support
+#include <util/setbaud.h>
 #include "lcd_drv.h"
+#include "mc_sabertooth.h"
 
 // adafruit lcd wiring tutorial: http://learn.adafruit.com/character-lcds/wiring-a-character-lcd
 // install path: /usr/lib/avr/include/avr
@@ -15,8 +17,8 @@ volatile unsigned int g_time_s = 0;   // will overflow after 16 hours
 volatile unsigned int _g_time_us_tick = 0; // internal ticker to count seconds passage; ms accrue since last sec bump
 
 // globals: receiver
-volatile unsigned char g_ch1_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) 11left<->right
-volatile unsigned char g_ch2_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) up<->down
+volatile unsigned char g_ch1_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) 11left<->right   ... 19,19 is top right
+volatile unsigned char g_ch2_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) up19<->down11    ... 11,11 is bottom left
 
 int main( void )
 {
@@ -42,12 +44,16 @@ int main( void )
   TIMSK1 |= (1 << OCIE1A); // Enable CTC interrupt 
   TCCR1B |= (1 << CS10); // Set up timer , with no prescaler (works at full MHz of clock)
 
-#if 1 // set up pin change interupt
+  // set up pin change interupt
+#if 1
   EICRA &= ~ ( (1 << ISC01) | (1 << ISC01) ); // clear ISC01+ISC00
   EICRA |= ( (1 << ISC00) ); // 00 set and 01 unset means any edge will make event
   PCMSK0 |= ( (1 << PCINT0) | (1 << PCINT1) ); // Pins to monitor: PA0 and PA1
   PCICR |= (1 << PCIE0); // PA is monitored
 #endif
+
+  // set up serial..
+  mc_setup();
 
   // setup done - kick up interupts
   sei();
@@ -55,9 +61,11 @@ int main( void )
 #if 1 // timer test .. show per-second counter update on lcd
   if ( 1 ) {
     unsigned int last_sec = g_time_s;
+    unsigned int last_us = _g_time_us_tick;
 
     while(1) {
 
+      // one second has past?
       if ( g_time_s != last_sec ) {
         sprintf ( textbuf, "%2d %2d     ", g_ch1_duration, g_ch2_duration );
         lcd_xy ( 0, 0 );
@@ -68,7 +76,17 @@ int main( void )
         lcd_puts( textbuf ); // display number right adjusted
 
         last_sec = g_time_s;
-      }
+      } // 1 sec tick
+
+      // 100ms has past?
+      if ( _g_time_us_tick - last_us > 1000 ) {
+        unsigned int ch1 = g_ch1_duration;
+        unsigned int ch2 = g_ch2_duration;
+
+        mc_set_by_receiver ( ch1, ch2 );
+
+        last_us = _g_time_us_tick;
+      } // .1sec tick
 
     } // while forever
 

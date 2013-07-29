@@ -9,8 +9,10 @@ int main( void )        __attribute__((OS_main));
 
 #include "avrutil.h"
 
-#define F_CPU   20000000UL // 20MHz
+#define F_CPU   20000000UL /* 20MHz */
 #include <util/delay.h>
+
+#define BAUD 9600 /* for sabertooth motor controller */
 
 #define	LCD_D4		SBIT( PORTC, 2 )
 #define	LCD_DDR_D4	SBIT( DDRC, 2 )

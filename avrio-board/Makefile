@@ -7,7 +7,7 @@ CC=avr-gcc
 LD=avr-gcc
 CFLAGS=-g -Os -mmcu=${MEGA} -I/usr/local/include
 
-OBJS=main.o lcd_drv.o
+OBJS=main.o lcd_drv.o mc_sabertooth.o uart.o
 
 clean:
 	rm -f ${OBJS}
