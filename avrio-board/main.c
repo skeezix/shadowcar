@@ -63,30 +63,37 @@ int main( void )
     unsigned int last_sec = g_time_s;
     unsigned int last_us = _g_time_us_tick;
 
-    while(1) {
+    unsigned char sent_l = 0, sent_r = 0;
+    char message [ 17 ];
 
-      // one second has past?
+    while(1) {
+      unsigned int ch1 = g_ch1_duration;
+      unsigned int ch2 = g_ch2_duration;
+
+      // 100ms has past?
+      if ( _g_time_us_tick - last_us > 1000 ) {
+
+        mc_set_by_receiver ( ch1, ch2, &sent_l, &sent_r, message );
+
+        last_us = _g_time_us_tick;
+      } // .1sec tick
+
+      // one second has past? update lcd
       if ( g_time_s != last_sec ) {
-        sprintf ( textbuf, "%2d %2d     ", g_ch1_duration, g_ch2_duration );
+        //sprintf ( textbuf, "recv %2d %2d     ", g_ch1_duration, g_ch2_duration );
+        sprintf ( textbuf, "m %2d %2d th %2d %2d #", sent_l, sent_r, ch1, ch2 );
         lcd_xy ( 0, 0 );
         lcd_puts( textbuf ); // display number right adjusted
 
-        sprintf ( textbuf, "timer %2d #", g_time_s );
+        //sprintf ( textbuf, "t%2d #", g_time_s );
+        sprintf ( textbuf, "t%2d # %s", g_time_s, message );
         lcd_xy ( 0, 1 );
         lcd_puts( textbuf ); // display number right adjusted
 
         last_sec = g_time_s;
       } // 1 sec tick
 
-      // 100ms has past?
-      if ( _g_time_us_tick - last_us > 1000 ) {
-        unsigned int ch1 = g_ch1_duration;
-        unsigned int ch2 = g_ch2_duration;
-
-        mc_set_by_receiver ( ch1, ch2 );
-
-        last_us = _g_time_us_tick;
-      } // .1sec tick
+      _delay_ms ( 20 );
 
     } // while forever
 

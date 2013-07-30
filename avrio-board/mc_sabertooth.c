@@ -57,13 +57,16 @@ void mc_speed ( mc_motor_select_e select, unsigned char strength ) {
   return;
 }
 
-void mc_set_by_receiver ( unsigned char x, unsigned char y ) {
+void mc_set_by_receiver ( unsigned char x, unsigned char y,
+                          unsigned char *r_sent_l, unsigned char *r_sent_r,
+                          char *r_message )
+{
 
   // Y -> set power (full or partial forward or backward)
   // X -> scales this for each motor; full left means no left motor, full right, where full is 'Y'
   unsigned char str_l, str_r;      // determined values
   unsigned char forward;           // temp
-  signed char strength;            // temp
+  unsigned char strength;          // temp
 
   // dead space .. if throttle is not high enough in one dir or the other, just all-stop
   if ( mc_is_deadspace ( y ) ) {
@@ -72,12 +75,12 @@ void mc_set_by_receiver ( unsigned char x, unsigned char y ) {
   }
 
   // determine initial strength based on throttle fwd/rev
-  if ( y > 16 ) {
+  if ( y > DEADCEIL ) {
     forward = 1;
-    strength = y - 16; // 1..3+ .. 1 being least
+    strength = y - DEADCEIL; // 1..3+ .. 1 being least
   } else {
     forward = 0;
-    strength = 14 - y; // 1..3+ .. 1 being least
+    strength = DEADFLOOR - y; // 1..3+ .. 1 being least
   }
 
   // convert strength 1..3+ to relative strength value
@@ -92,37 +95,61 @@ void mc_set_by_receiver ( unsigned char x, unsigned char y ) {
     // nada .. full power
     
     // convert to actual strength value
-    if ( forward ) {
-      strength += 63;
+    if ( forward ) { 
+      strength = MOTOROFF + strength;
     } else {
-      strength = 63 - strength;
+      strength = MOTOROFF - strength;
     }
 
     // set speeds
     mc_speed ( mcm_both, strength );
 
-  } else {
+    if ( r_sent_l ) {
+      *r_sent_l = strength;
+    }
+    if ( r_sent_r ) {
+      *r_sent_r = strength;
+    }
+    if ( r_message ) {
+      strcpy ( r_message, "hdead" );
+    }
 
-    if ( x > 16 ) {
-      str_l = strength - ( ( x - 16 ) * 5 );
-      str_r = strength - ( ( 4 - ( x - 16 ) ) * 5 );
+  } else {
+    // apply power differently to each side
+
+    if ( x > DEADCEIL ) {
+      // turn right: reduce power on right side, keep left side strong
+      str_l = strength;
+      str_r = strength - 
+        ( ( x - DEADCEIL ) * 5 );
     } else {
-      str_r = strength - ( ( x - 16 ) * 5 );
-      str_l = strength - ( ( 4 - ( x - 16 ) ) * 5 );
+      str_r = strength;
+      str_l = strength - 
+        ( ( DEADFLOOR - x ) * 5 );
     }
 
     // convert to actual strength value
     if ( forward ) {
-      str_l += 63;
-      str_r += 63;
+      str_l += MOTOROFF;
+      str_r += MOTOROFF;
     } else {
-      str_l = 63 - str_l;
-      str_r = 63 - str_r;
+      str_l = MOTOROFF - str_l;
+      str_r = MOTOROFF - str_r;
     }
 
     // set speeds
     mc_speed ( mcm_left, str_l );
-    mc_speed ( mcm_left, str_r );
+    mc_speed ( mcm_right, str_r );
+
+    if ( r_sent_l ) {
+      *r_sent_l = str_l;
+    }
+    if ( r_sent_r ) {
+      *r_sent_r = str_r;
+    }
+    if ( r_message ) {
+      strcpy ( r_message, "hdif" );
+    }
 
   }
 
