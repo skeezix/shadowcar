@@ -62,39 +62,42 @@ void mc_set_by_receiver ( unsigned char x, unsigned char y,
                           char *r_message )
 {
 
-  // Y -> set power (full or partial forward or backward)
-  // X -> scales this for each motor; full left means no left motor, full right, where full is 'Y'
-  unsigned char str_l, str_r;      // determined values
-  unsigned char forward;           // temp
-  unsigned char strength;          // temp
+  // lame, but for now..
+  // Y -> if pure Y (X is dead zone), then forward or back various speed; ie: left == right
+  // X (if X not in dead zone) .. rotate on spot various speed; ie: left = -right.
 
-  // dead space .. if throttle is not high enough in one dir or the other, just all-stop
-  if ( mc_is_deadspace ( y ) ) {
-    mc_speed ( mcm_allstop, 0 );
-    return;
-  }
-
-  // determine initial strength based on throttle fwd/rev
-  if ( y > DEADCEIL ) {
-    forward = 1;
-    strength = y - DEADCEIL; // 1..3+ .. 1 being least
-  } else {
-    forward = 0;
-    strength = DEADFLOOR - y; // 1..3+ .. 1 being least
-  }
-
-  // convert strength 1..3+ to relative strength value
-  switch ( strength ) {
-  case 1:   strength = 15; break;
-  case 2:   strength = 25; break;
-  default:  strength = 35;
-  }
-
-  // scale strength by X left/rightness
+  // check dead space; which are we doing.. turning, or moving?
   if ( mc_is_deadspace ( x ) ) {
-    // nada .. full power
-    
-    // convert to actual strength value
+    // possible fwd/back
+    unsigned char forward;
+    unsigned char strength;
+
+    // is Y deadspace? if so...
+    if ( mc_is_deadspace ( y ) ) {
+      mc_speed ( mcm_allstop, 0 );
+      return;
+    }
+
+    // we must be intending forward or back!
+    //
+
+    // determine initial strength based on throttle fwd/rev
+    if ( y > DEADCEIL ) {
+      forward = 1;
+      strength = y - DEADCEIL; // 1..3+ .. 1 being least
+    } else {
+      forward = 0;
+      strength = DEADFLOOR - y; // 1..3+ .. 1 being least
+    }
+
+    // convert strength 1..3+ to relative strength value
+    switch ( strength ) {
+    case 1:   strength = 5; break;
+    case 2:   strength = 20; break;
+    default:  strength = 40;
+    }
+
+    // handle direction
     if ( forward ) { 
       strength = MOTOROFF + strength;
     } else {
@@ -111,47 +114,62 @@ void mc_set_by_receiver ( unsigned char x, unsigned char y,
       *r_sent_r = strength;
     }
     if ( r_message ) {
-      strcpy ( r_message, "hdead" );
+      strcpy ( r_message, "Y" );
     }
 
   } else {
-    // apply power differently to each side
+    // intention to turn on spot
+    unsigned char right;
+    unsigned char strength;
 
+    // determine initial strength based on throttle fwd/rev
     if ( x > DEADCEIL ) {
-      // turn right: reduce power on right side, keep left side strong
-      str_l = strength;
-      str_r = strength - 
-        ( ( x - DEADCEIL ) * 5 );
+      right = 1;
+      strength = x - DEADCEIL; // 1..3+ .. 1 being least
     } else {
-      str_r = strength;
-      str_l = strength - 
-        ( ( DEADFLOOR - x ) * 5 );
+      right = 0;
+      strength = DEADFLOOR - x; // 1..3+ .. 1 being least
     }
 
-    // convert to actual strength value
-    if ( forward ) {
-      str_l += MOTOROFF;
-      str_r += MOTOROFF;
-    } else {
-      str_l = MOTOROFF - str_l;
-      str_r = MOTOROFF - str_r;
+    // convert strength 1..3+ to relative strength value
+    // 15 is not enough to turn..
+    switch ( strength ) {
+    case 1:   strength = 25; break;
+    case 2:   strength = 35; break;
+    default:  strength = 45;
     }
+
+#if 0
+    // handle direction
+    if ( right ) { 
+      strength = MOTOROFF + strength;
+    } else {
+      strength = MOTOROFF - strength;
+    }
+#endif
 
     // set speeds
-    mc_speed ( mcm_left, str_l );
-    mc_speed ( mcm_right, str_r );
+    if ( right ) {
+      mc_speed ( mcm_right, MOTOROFF + strength );
+      mc_speed ( mcm_left, MOTOROFF - strength );
+    } else {
+      mc_speed ( mcm_left, MOTOROFF + strength );
+      mc_speed ( mcm_right, MOTOROFF - strength );
+    }
 
+#if 0
     if ( r_sent_l ) {
-      *r_sent_l = str_l;
+      *r_sent_l = strength;
     }
     if ( r_sent_r ) {
-      *r_sent_r = str_r;
+      *r_sent_r = strength;
     }
     if ( r_message ) {
-      strcpy ( r_message, "hdif" );
+      strcpy ( r_message, "X" );
     }
+#endif
 
-  }
+  } // Y deadspace -> mode
 
   return;
 }
