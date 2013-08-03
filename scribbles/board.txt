@@ -1,0 +1,13 @@
+
+Reqs:
+- switch on battery for killing power
+- terminal strip (?) on board, so can connect motor and battery easily
+- headers:
+  - ISP programming header - 6pins female linear           ..... check
+  - receiver header - 2 * 3pins = 6pins male               ..... check check
+  - LCD header - 16pins female + Pot 
+  - RX/TX header -> motor controller - 1 pin female        .... check
+  - power header - 2pins female                            .... check
+
+NOTE:
+* move LCD from top right to bottom left; i2c is in top right!

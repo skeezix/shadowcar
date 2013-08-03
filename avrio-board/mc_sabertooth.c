@@ -85,9 +85,9 @@ void mc_set_by_receiver ( unsigned char x, unsigned char y,
 
   // convert strength 1..3+ to relative strength value
   switch ( strength ) {
-  case 1:   strength = 5; break;
-  case 2:   strength = 10; break;
-  default:  strength = 15;
+  case 1:   strength = 15; break;
+  case 2:   strength = 25; break;
+  default:  strength = 35;
   }
 
   // scale strength by X left/rightness

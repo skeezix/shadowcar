@@ -1,0 +1,13 @@
+
+As of July 2013..
+
+antenna is top edge away from me
+
+terminal strip:
+- top is power .. black, then red
+- 2 blank
+- motors:
+  - black painted
+  - red
+  - black
+  - red
