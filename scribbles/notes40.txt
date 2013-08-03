@@ -12,7 +12,10 @@ todo:
   - drive servo from mcu
   - range finder .. works?
   - protocol between r-pi and mcu
-  
+
+desirables:
+  + voltage reader; add some resistor voltage dividers, feed battery into ADC to measure it
+    : see: http://www.microbuilder.eu/Tutorials/Fundamentals/MeasuringBatteryVoltage.aspx  
 
 raspberry-pi model b:
   - peripherals:
@@ -32,6 +35,13 @@ raspberry-pi model b:
     -> mcu
 
 atmega1284 (now atmega644):
+  - actuals:
+    receiver ch 1: PA0
+    receiver ch 2: PA1
+    serial rx: PD0
+    serial tx: PD1
+    isp pins: not impacting pin availability
+
   - burner pins:
     - reset 1
     - power 4
