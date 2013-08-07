@@ -1,0 +1,17 @@
+
+see: http://www.aonsquared.co.uk/the_dark_pi_rises
+
+RASPBERRY PI /etc/network/interfaces:
+
+auto wlan0
+iface wlan0 inet static
+    address 192.168.1.1
+    netmask 255.255.255.0
+    gateway 192.168.1.2
+    wireless-channel 1
+    wireless-essid MYNETWORK
+    wireless-mode ad-hoc
+
+# maybe need liek pandora..
+sudo iwconfig wlan0 rate 1M
+iwconfig wlan0 power off

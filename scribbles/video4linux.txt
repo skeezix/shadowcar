@@ -1,0 +1,6 @@
+
+
+v4l2-ctl --list-formats
+
+-> 320x240
+v4l2-ctl --set-fmt-video=width=320,height=240,pixelformat=0  <- check pixel format to get the # instead of 0

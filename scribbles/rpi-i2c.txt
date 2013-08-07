@@ -1,0 +1,26 @@
+
+http://blog.oscarliang.net/raspberry-pi-arduino-connected-i2c/
+
+cat /etc/modprobe.d/raspi-blacklist.conf
+-> remove i2c from blacklist
+
+ /etc/modules
+-> add i2c-dev
+
+sudo apt-get install i2c-tools
+
+sudo adduser pi i2c
+
+reboot:
+/dev/i2c* show up
+
+$ ls -l /dev/i2c*
+crw-rw---T 1 root i2c 89, 0 Aug  7 03:43 /dev/i2c-0
+crw-rw---T 1 root i2c 89, 1 Aug  7 03:43 /dev/i2c-1
+
+
+scan:
+i2cdetect -y 1 
+
+python i2c:
+sudo apt-get install python-smbus
