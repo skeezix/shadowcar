@@ -5,8 +5,11 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>   // include interrupt support
 #include <util/setbaud.h>
+#include <avr/sleep.h>
+
 #include "lcd_drv.h"
 #include "mc_sabertooth.h"
+#include "TWI_slave.h"
 
 // adafruit lcd wiring tutorial: http://learn.adafruit.com/character-lcds/wiring-a-character-lcd
 // install path: /usr/lib/avr/include/avr
@@ -20,10 +23,19 @@ volatile unsigned int _g_time_us_tick = 0; // internal ticker to count seconds p
 volatile unsigned char g_ch1_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) 11left<->right   ... 19,19 is top right
 volatile unsigned char g_ch2_duration = 0; // us that last pwm was at (11-19/20, 15 is at rest) up19<->down11    ... 11,11 is bottom left
 
+// TWI / I2C commands
+unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg );
+typedef enum {
+  tc_nil = 0,
+  tc_heartbeat = 1,
+  tc_gethello,
+  // 1,2,3,...
+} twi_cmd_e;
+
 int main( void )
 {
   uint32_t val = 0;
-  char textbuf [ (2*16) + 1 ];
+  char textbuf [ (2*16) + 1 ]; // lcd
 
   /* setup
    */
@@ -31,7 +43,8 @@ int main( void )
   // LCD
   lcd_init();
 
-  // enable a timer so we can measure passage of time
+  // Timer: enable a timer so we can measure passage of time
+  //
   // Given: 20MHz clock
   // --> if we want resolution of ms (1/1000th second) .. actually, we want us (1/10th of a ms) so we can measure partial ms
   // --> and we have 1/20000000 clock resolution
@@ -44,7 +57,7 @@ int main( void )
   TIMSK1 |= (1 << OCIE1A); // Enable CTC interrupt 
   TCCR1B |= (1 << CS10); // Set up timer , with no prescaler (works at full MHz of clock)
 
-  // set up pin change interupt
+  // Receiver setup - set up pin change interupt
 #if 1
   EICRA &= ~ ( (1 << ISC01) | (1 << ISC01) ); // clear ISC01+ISC00
   EICRA |= ( (1 << ISC00) ); // 00 set and 01 unset means any edge will make event
@@ -52,11 +65,21 @@ int main( void )
   PCICR |= (1 << PCIE0); // PA is monitored
 #endif
 
-  // set up serial..
+  // Serial - setup (for motor controller)
   mc_setup();
+
+  // TWI - set up
+  unsigned char twibuf [ TWI_BUFFER_SIZE ];
+  unsigned char TWI_slaveAddress; 
+  TWI_slaveAddress = 0x10; // our TWI address
+  TWI_Slave_Initialise( (unsigned char)((TWI_slaveAddress<<TWI_ADR_BITS) | (TRUE<<TWI_GEN_BIT) )); // Initialise TWI module as slave; include addr+general
+  unsigned char twi_heartbeat_counter = 0;
 
   // setup done - kick up interupts
   sei();
+
+  // Start the TWI transceiver to enable reseption of the first command from the TWI Master.
+  TWI_Start_Transceiver();
 
 #if 1 // timer test .. show per-second counter update on lcd
   if ( 1 ) {
@@ -93,6 +116,63 @@ int main( void )
         last_sec = g_time_s;
       } // 1 sec tick
 
+      // TWI/I2C stuff, talk to r-pi
+      //
+
+      // Check if the TWI Transceiver has completed an operation.
+      if ( ! TWI_Transceiver_Busy() ) {
+
+        // Check if the last operation was successful
+        if ( TWI_statusReg.lastTransOK ) {
+
+          // Check if the last operation was a reception
+          if ( TWI_statusReg.RxDataInBuf ) {
+            TWI_Get_Data_From_Transceiver ( twibuf, 2 );
+
+            // Check if the last operation was a reception as General Call        
+            if ( TWI_statusReg.genAddressCall ) {
+              // don't care
+
+            } else { // Ends up here if the last operation was a reception as Slave Address Match   
+              // Example of how to interpret a command and respond.
+
+#if 0            
+              // TWI_CMD_MASTER_WRITE stores the data to PORTB
+              if (twibuf[0] == TWI_CMD_MASTER_WRITE) {
+                PORTB = twibuf[1];                            
+              }
+#endif
+
+              // TWI_CMD_MASTER_READ prepares the data from PINB in the transceiver buffer for the TWI master to fetch.
+              if ( twibuf[0] == tc_heartbeat ) {
+                twibuf [ 0 ] = 1;
+                twibuf [ 1 ] = twi_heartbeat_counter++;
+                TWI_Start_Transceiver_With_Data ( twibuf, TWI_BUFFER_SIZE );
+              } else if ( twibuf[0] == tc_gethello ) {
+                sprintf ( twibuf + 1, "hello" );
+                twibuf [ 0 ] = strlen ( twibuf + 1 ); // len
+                TWI_Start_Transceiver_With_Data ( twibuf, TWI_BUFFER_SIZE );
+              }
+
+            }
+
+          } else { // Ends up here if the last operation was a transmission  
+            // don't care
+          }
+
+          // Check if the TWI Transceiver has already been started.
+          // If not then restart it to prepare it for new receptions.             
+          if ( ! TWI_Transceiver_Busy() ) {
+            TWI_Start_Transceiver();
+          }
+
+        } else { // Ends up here if the last operation completed unsuccessfully
+          TWI_Act_On_Failure_In_Last_Transmission ( TWI_Get_State_Info() );
+        } // success/fail
+
+      } // TWI busy?
+
+      // spin
       _delay_ms ( 20 );
 
     } // while forever
@@ -168,4 +248,14 @@ ISR(PCINT0_vect)
 
   // update last state
   _g_pin_state = PINA;
+}
+
+unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg ) {
+  // A failure has occurred, use TWIerrorMsg to determine the nature of the failure
+  // and take appropriate actions.
+  // See header file for a list of possible failures messages.
+  
+  TWI_Start_Transceiver();
+                    
+  return ( TWIerrorMsg ); 
 }
