@@ -10,6 +10,7 @@
 #include "lcd_drv.h"
 #include "mc_sabertooth.h"
 #include "TWI_slave.h"
+#include "avrutil.h"
 
 // adafruit lcd wiring tutorial: http://learn.adafruit.com/character-lcds/wiring-a-character-lcd
 // install path: /usr/lib/avr/include/avr
@@ -28,9 +29,14 @@ unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMs
 typedef enum {
   tc_nil = 0,
   tc_heartbeat = 1,
-  tc_gethello,
+  tc_gethello = 2,
+  tc_setmotors = 3,
+  tc_takeover = 4,         // take over control; revert to RC if nothing comes in for a couple seconds
+  tc_release = 5,          // release control to RC
   // 1,2,3,...
 } twi_cmd_e;
+unsigned char g_control_twi = 0; // if >0, twi is controlling .. for now
+unsigned int g_control_last_s = 0; // when we last received signal from TWI
 
 int main( void )
 {
@@ -78,6 +84,15 @@ int main( void )
   // setup done - kick up interupts
   sei();
 
+  // lets burn the first couple of seconds, so the receiver can get some signal
+  // before we start blasting stuff into the motor controllers
+  {
+    unsigned int start_sec = g_time_s;
+    while ( g_time_s - start_sec < 3 ) {
+      nop();
+    }
+  }
+
   // Start the TWI transceiver to enable reseption of the first command from the TWI Master.
   TWI_Start_Transceiver();
 
@@ -96,7 +111,14 @@ int main( void )
       // 100ms has past?
       if ( _g_time_us_tick - last_us > 1000 ) {
 
-        mc_set_by_receiver ( ch1, ch2, &sent_l, &sent_r, message );
+        if ( g_control_twi ) {
+          // we're on TWI control, but if nothing comes in.. revert back to RC
+          if ( g_time_s - g_control_last_s > 2 ) {
+            g_control_twi = 0;
+          }
+        } else {
+          mc_set_by_receiver ( ch1, ch2, &sent_l, &sent_r, message );
+        }
 
         last_us = _g_time_us_tick;
       } // .1sec tick
@@ -127,7 +149,7 @@ int main( void )
 
           // Check if the last operation was a reception
           if ( TWI_statusReg.RxDataInBuf ) {
-            TWI_Get_Data_From_Transceiver ( twibuf, 2 );
+            TWI_Get_Data_From_Transceiver ( twibuf, 3 );
 
             // Check if the last operation was a reception as General Call        
             if ( TWI_statusReg.genAddressCall ) {
@@ -148,9 +170,30 @@ int main( void )
                 twibuf [ 0 ] = 1;
                 twibuf [ 1 ] = twi_heartbeat_counter++;
                 TWI_Start_Transceiver_With_Data ( twibuf, TWI_BUFFER_SIZE );
+
               } else if ( twibuf[0] == tc_gethello ) {
                 sprintf ( twibuf + 1, "hello" );
                 twibuf [ 0 ] = strlen ( twibuf + 1 ); // len
+                TWI_Start_Transceiver_With_Data ( twibuf, TWI_BUFFER_SIZE );
+
+              } else if ( twibuf[0] == tc_setmotors ) {
+                g_control_last_s = g_time_s;
+                mc_speed ( mcm_left, twibuf [ 1 ] );
+                mc_speed ( mcm_right, twibuf [ 2 ] );
+
+              } else if ( twibuf[0] == tc_takeover ) {
+                g_control_last_s = g_time_s;
+                g_control_twi = 1;
+
+              } else if ( twibuf[0] == tc_release ) {
+                g_control_twi = 0;
+
+              } else {
+                twibuf [ 0 ] = 1;
+                twibuf [ 1 ] = 0xde;
+                twibuf [ 2 ] = 0xad;
+                twibuf [ 3 ] = 0xbe;
+                twibuf [ 4 ] = 0xef;
                 TWI_Start_Transceiver_With_Data ( twibuf, TWI_BUFFER_SIZE );
               }
 

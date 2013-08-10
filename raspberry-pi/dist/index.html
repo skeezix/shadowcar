@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  <title>ShadowCar</title>
+
+  <!-- Pull in JQuery and JQueryUI -->
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+
+  <script>
+    $(document).ready ( function(){
+      // do jQuery
+    })
+  </script>
+
+  <!-- add canvas to cover phone screen -->
+  <meta name="viewport" content="width=400" />
+  <meta name="viewport" content="initial-scale=3" />
+
+  <script type="text/javascript">
+    var can, ctx, canX, canY, mouseIsDown = 0;
+    
+    function init() {
+      can = document.getElementById("can");
+      ctx = can.getContext("2d");
+    
+      can.addEventListener("mousedown", mouseDown, false);
+      can.addEventListener("mousemove", mouseXY, false);
+      can.addEventListener("touchstart", touchDown, false);
+      can.addEventListener("touchmove", touchXY, true);
+      can.addEventListener("touchend", touchUp, false);
+    
+      document.body.addEventListener("mouseup", mouseUp, false);
+      document.body.addEventListener("touchcancel", touchUp, false);
+    }
+    
+    function mouseUp() {
+      mouseIsDown = 0;
+      mouseXY();
+    }
+    
+    function touchUp() {
+      mouseIsDown = 0;
+      // no touch to track, so just show state
+      showPos();
+    }
+    
+    function mouseDown() {
+      mouseIsDown = 1;
+      mouseXY();
+    }
+    
+    function touchDown() {
+      mouseIsDown = 1;
+      touchXY();
+    }
+    
+    function mouseXY(e) {
+      if (!e)
+        var e = event;
+      canX = e.pageX - can.offsetLeft;
+      canY = e.pageY - can.offsetTop;
+      showPos();
+    }
+    
+    function touchXY(e) {
+      if (!e)
+        var e = event;
+      e.preventDefault();
+      canX = e.targetTouches[0].pageX - can.offsetLeft;
+      canY = e.targetTouches[0].pageY - can.offsetTop;
+      showPos();
+    }
+    
+    function showPos() {
+      // send to car
+      // http://stackoverflow.com/questions/247483/http-get-request-in-javascript
+      canY = 127 - canY;
+      if ( canY > 63 ) {
+        canY = canY - 63;
+      } else {
+        canY = 63;
+      }
+      //$.get ( "http://10.0.0.119:12343/dpad/" + canX + '/' + canY );
+      $.get ( "http://10.0.0.119:12343/dpad/" + canY + '/' + canY );
+
+      /*
+      jsondata = JSON.stringify ( { "x": canX, "y": canY } );
+      $.ajax ({
+        type: "GET",
+        url: "http://localhost:12343/dpad/" + str ( canX ) + '/' + str ( canY ),
+        //data: jsondata,
+        contentType: "application/json; charset=utf-8",
+        //dataType: "json",
+        failure : function ( errmsg ) {
+          alert ( errmsg );
+        }
+      }
+      );
+      */
+
+      // large, centered, bright green text
+      ctx.font = "24pt Helvetica";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgb(64,255,64)";
+      var str = canX + ", " + canY;
+      if (mouseIsDown)
+        str += " down";
+      if (!mouseIsDown)
+        str += " up";
+      ctx.clearRect(0, 0, can.width, can.height);
+      // draw text at center, max length to fit on canvas
+      ctx.fillText(str, can.width / 2, can.height / 2, can.width - 10);
+      // plot cursor
+      ctx.fillStyle = "white";
+      ctx.fillRect(canX -5, canY -5, 10, 10);
+    }
+    </script>
+
+</head>
+<body onload="init()">
+
+  <!-- <a href="http://www.foo.com">foo!</a> -->
+
+    <!-- give canvas rounded corners-->
+    <canvas id="can" height="127" width="127" style="background-color:black; border-radius:25px;">
+    </canvas>
+
+    <br />
+
+</body>
+</html>
