@@ -14,6 +14,7 @@ typedef enum {
 // strength: 1..127 always
 // <63 is one dir, >63 is other
 // ==63 -> off
+// 1 and 127 are peek; 62 and 64 are minimum for their direction
 void mc_speed ( mc_motor_select_e select, unsigned char strength );
 
 // x,y are both 11..19 (possibly 10..20 for blips)

@@ -15,6 +15,7 @@ clean:
 	rm -f avrio.hex
 	rm -f avrio.map
 	rm -f *~*
+	rm -f mc_sabertooth
 
 avrio:	${OBJS}
 	avr-gcc -g -mmcu=${MEGA} -o avrio.elf ${OBJS}

@@ -1,0 +1,18 @@
+all:	avrio
+
+CC=gcc
+LD=gcc
+CFLAGS=-g -Os -I/usr/local/include -DLINUX
+
+OBJS=mc_sabertooth.o
+
+clean:
+	rm -f ${OBJS}
+	rm -f avrio.elf
+	rm -f avrio.hex
+	rm -f avrio.map
+	rm -f *~*
+	rm -f mc_sabertooth
+
+avrio:	${OBJS}
+	gcc -g -o mc_sabertooth ${OBJS}
