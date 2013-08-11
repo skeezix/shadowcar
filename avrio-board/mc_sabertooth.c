@@ -68,11 +68,11 @@ void mc_speed ( mc_motor_select_e select, unsigned char strength ) {
   case mcm_nil:
     break;
 
-  case mcm_left:
+  case mcm_right:
     uart_putchar_prewait ( strength ); // motor 1
     break;
 
-  case mcm_right:
+  case mcm_left:
     uart_putchar_prewait ( strength + 127 ); // motor 2
     break;
 
@@ -97,14 +97,17 @@ void mc_set_by_receiver_inc ( unsigned char x, unsigned char y,
 {
   // incrementing mode..
   //
+  // rules..
+  // - decellerate is faster ramp than accelerate (need to slow down!)
+  //
   // - degree of tilt == delta-amount
   //   - no tilt == no adjustment (stay current orders)
   // - apply delta amount, until hitting cap or floor
   // - left/right applies negative to that side (towards floor)
   // - when landing at stop, require a release and then repull to pass it?
-  // - Special Case: if request is turn left/right, and current forward speed is 0 and no Y throttle, then turn on spot
+  // - Rotate on Spot - Special Case: if request is turn left/right, and current forward speed is 0 and no Y throttle, then turn on spot
+  // - Shortcut Reverse Rule: If forward str == 0, and -ve delta Y, then just reverse this moment at standard (slow) reverse right
   static unsigned char strength = 0; // 0 min -> 62 max
-  static unsigned char forward = 1;  // >0 -> forward, otherwise reverse
 
   // allow x/y values 10..20 (expecting 11..19, but 10/20 do occasionally happen; treat same.)
   x = MIN(19,x); // if 20, goes to 19
@@ -122,19 +125,26 @@ void mc_set_by_receiver_inc ( unsigned char x, unsigned char y,
   delta_throttle = 0;
 
   if ( y > DEADCEIL ) {
-    delta_throttle = 1;
-  } else if ( y < DEADFLOOR ) {
-    delta_throttle = -1;
-  }
 
-#if 0
-  if ( delta_throttle && ! forward ) {
-    delta_throttle *= -1; // if going reverse, invert the direction
+    if ( y == 19 ) {
+      delta_throttle = 2;
+    } else {
+      delta_throttle = 1;
+    }
+
+  } else if ( y < DEADFLOOR ) {
+
+    if ( y == 11 ) {
+      delta_throttle = -4;
+    } else {
+      delta_throttle = -2;
+    }
+
   }
-#endif
 
   // short circuit special case
-  if ( ( delta_throttle == 0 ) && // Y is not tilted
+  if ( ( strength == 0 ) && // not going forward
+       ( delta_throttle == 0 ) && // not trying to accelerate
        ( ( x < DEADFLOOR ) || ( x > DEADCEIL ) )  // X _is_ tiled
      )
   {
@@ -162,36 +172,39 @@ void mc_set_by_receiver_inc ( unsigned char x, unsigned char y,
 
     // set speeds
     if ( right ) {
-      mc_speed ( mcm_right, MOTOROFF + spin );
-      mc_speed ( mcm_left, MOTOROFF - spin );
-    } else {
       mc_speed ( mcm_left, MOTOROFF + spin );
       mc_speed ( mcm_right, MOTOROFF - spin );
+    } else {
+      mc_speed ( mcm_right, MOTOROFF + spin );
+      mc_speed ( mcm_left, MOTOROFF - spin );
     }
 
     return;
   } // short circuit to turn on spot?
 
+  // short circuit reverse
+  if ( ( delta_throttle < 0 ) &&
+       ( strength == 0 )
+     )
+  {
+    unsigned char reverse;
+
+    //reverse = 10 * abs(delta_throttle);
+    if ( delta_throttle == -1 ) {
+      reverse = 12;
+    } else {
+      reverse = 20;
+    }
+
+    mc_speed ( mcm_both, MOTOROFF - reverse );
+
+    return;
+  }
+
   // apply delta .. stopping at 0
   if ( delta_throttle != 0 ) {
 
-    if ( strength == 0 ) {
-
-      // determine new direction..
-      if ( delta_throttle > 0 ) {
-        forward = 1;
-      } else if ( delta_throttle < 0 ) {
-        forward = 0;
-      }
-
-    } // str==0?
-
     if ( delta_throttle < 0 ) {
-
-      figure_this_out;
-      if ( forward ) {
-      } else {
-      }
 
       if ( abs ( delta_throttle ) > strength ) {
         strength = 0;
@@ -200,11 +213,6 @@ void mc_set_by_receiver_inc ( unsigned char x, unsigned char y,
       }
 
     } else if ( delta_throttle > 0 ) {
-
-      figure_this_out;
-      if ( forward ) {
-      } else {
-      }
 
       if ( strength + delta_throttle < 62 ) {
         strength += delta_throttle;
@@ -246,11 +254,16 @@ void mc_set_by_receiver_inc ( unsigned char x, unsigned char y,
 
     if ( x > DEADCEIL ) {
       // turn right; reduce right motor
-      str_r /= ( 1 + turn );
+      str_r = str_r / ( 3 + turn );
+      str_l += 15;
     } else {
       // turn left; reduce left motor
-      str_l /= ( 1 + turn );
+      str_l = str_l / ( 3 + turn );
+      str_r += 15;
     }
+
+    str_l = MIN(str_l,62);
+    str_r = MIN(str_r,62);
 
   }
 
@@ -258,14 +271,8 @@ void mc_set_by_receiver_inc ( unsigned char x, unsigned char y,
   //
 
   // apply motor change
-  // handle direction
-  if ( forward ) { 
-    mc_speed ( mcm_left, MOTOROFF + str_l );
-    mc_speed ( mcm_right, MOTOROFF + str_r );
-  } else {
-    mc_speed ( mcm_left, MOTOROFF - str_l );
-    mc_speed ( mcm_right, MOTOROFF - str_r );
-  }
+  mc_speed ( mcm_left, MOTOROFF + str_l );
+  mc_speed ( mcm_right, MOTOROFF + str_r );
 
   return;
 }
@@ -406,8 +413,25 @@ void mc_set_by_receiver ( unsigned char x, unsigned char y,
 int main ( int argc, char *argv[] ) {
   char message [ 128 ];
   unsigned char sent_l, sent_r;
+  unsigned char i;
+
+  // turn test
+#if 1
+
+  // ramp up a bit
+  for ( i = 0; i < 20; i++ ) {
+    mc_set_by_receiver ( 15, 18, &sent_l, &sent_r, message );
+  }
+
+  // turn..
+  mc_set_by_receiver ( 11, 15, &sent_l, &sent_r, message );
+  mc_set_by_receiver ( 11, 15, &sent_l, &sent_r, message );
+  mc_set_by_receiver ( 11, 15, &sent_l, &sent_r, message );
+
+#endif
 
   // rotation test
+#if 0
   printf ( "Rotation test\n" );
 
   mc_set_by_receiver ( 11, 15, &sent_l, &sent_r, message ); // rotate left on spot
@@ -419,8 +443,10 @@ int main ( int argc, char *argv[] ) {
   mc_set_by_receiver ( 19, 15, &sent_l, &sent_r, message ); // rotate right on spot
   mc_set_by_receiver ( 19, 15, &sent_l, &sent_r, message ); // rotate right on spot
   mc_set_by_receiver ( 15, 15, &sent_l, &sent_r, message ); // do nothing
+#endif
 
   // forward/back test
+#if 0
   printf ( "Forward/back test\n" );
 
   mc_set_by_receiver ( 15, 11, &sent_l, &sent_r, message );
@@ -445,6 +471,7 @@ int main ( int argc, char *argv[] ) {
   mc_set_by_receiver ( 19, 19, &sent_l, &sent_r, message );
   mc_set_by_receiver ( 11, 11, &sent_l, &sent_r, message );
   mc_set_by_receiver ( 11, 11, &sent_l, &sent_r, message );
+#endif
 
   return ( 0 );
 }
