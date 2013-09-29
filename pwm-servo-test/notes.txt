@@ -1,0 +1,14 @@
+
+Given: Analog servo
+
+- the pulse period (frequency) is about 20ms (or about 50hz)
+- lesser frequency probably works, but you have less torque as you're not refreshign the 'push' as often
+
+- the pulse width is up to 2.0ms (approx) - it is possible a servo may allow longer pulse width for more reach?
+- 90 deg servo: approx 1.5ms is neutral, and 1.0ms for one end and 2.0ms for the other
+- hitec hs-422: 180 deg servo: approx 0.5ms is left, 1.5ms for middle, 2.5ms is far right
+
+- the ending is not defined; 1.0 may be far clockwise, or far counterclockwise
+- the middle is not well defined; it coudl be 1.5 is middle, or it could be off to one side with 80deg left one side and 100deg off the other
+
+- if you over-push the servo past its mechanical end, you may burn it up

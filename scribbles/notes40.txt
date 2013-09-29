@@ -52,7 +52,7 @@ atmega1284 (now atmega644):
     - usart pins: 1284->2 usarts!
     - PWM out pins:
     - ADC in pins:
-    - i2c:
+    - i2c: PC0 PC1
     - total IO pins:
   - goals:
     + ISP -> 3 pins (freebies)
@@ -61,8 +61,8 @@ atmega1284 (now atmega644):
       = p2 -> lcd EN pin 6
       = p6 -> lcd D7 pin 14
       = p5    lcd D6 pin 13
-      = p4    lcd D6 pin 12
-      = p3    lcd D6 pin 11
+      = p4    lcd D5 pin 12
+      = p3    lcd D4 pin 11
     + RC receiver -> 1 pin
     - optional: speed sensor
     - optional: charger, charge sensors (heat, coltage, amperage)
