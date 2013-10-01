@@ -22,6 +22,10 @@
 //   MCUCR = _BV (ISC01); // int - INT0 is falling edge
 //   sei(); // int - Global enable interrupts
 
+#define SERVOTIMER 1
+#define SERVO1 1
+#define SERVO2 1
+
 int main ( void ) {
 
   // Given:
@@ -43,21 +47,11 @@ int main ( void ) {
   // OC2A and OC2B -> pin 21 PD7 and pin 20 PD6
 
   // blinking LED
-  DDRD |= (1<<PD6); // Poor choice, this is one of our timer pins :P But it is near the end, which is handy :P
+  DDRB |= (1<<PB0); // Poor choice, this is one of our timer pins :P But it is near the end, which is handy :P
 
-  // PWM 1 - OC2A PD7 - Timer 2A
-  //
-  // direction -> output
-  DDRD |= (1<<PD7);
-  // timer setup
-  //   0 1 Toggle OC2A on Compare Match
-  TCCR2A &= ~(1<<COM2A1);
-  TCCR2A &= ~(1<<COM2A0);
-  //TCCR2A |= (1<<COM2A0);
-  TCCR2A |= (1<<COM2A1);
-  //   1 0 Clear OC2A on Compare Match
-  //TCCR2A &= ~(1<<COM2A1);
-  //TCCR2A |= (1<<COM2A0);
+
+
+#ifdef SERVOTIMER
   // PWM mode (normal, fast pwm, phase corrected, etc)
   // just 0 -> PWM Phase Corrected, top 0xFF
   // 2 and 0 -> PWM Phase Corrected, top OCRA
@@ -72,8 +66,28 @@ int main ( void ) {
   TCCR2B |= (1<<CS20); // turn on clock
   TCCR2B |= (1<<CS21); // turn on clock .. 22+21 == 256 prescaler
   //TCCR2B |= (1<<CS22); // turn on clock
-  // duty cycle
+#endif
 
+
+
+
+
+#ifdef SERVO1
+  // PWM 1 - OC2A PD7 - Timer 2A
+  //
+  // direction -> output
+  DDRD |= (1<<PD7);
+  // timer setup
+  //   0 1 Toggle OC2A on Compare Match
+  TCCR2A &= ~(1<<COM2A1);
+  TCCR2A &= ~(1<<COM2A0);
+  //TCCR2A |= (1<<COM2A0);
+  TCCR2A |= (1<<COM2A1);
+  //   1 0 Clear OC2A on Compare Match
+  //TCCR2A &= ~(1<<COM2A1);
+  //TCCR2A |= (1<<COM2A0);
+
+  // duty cycle
 #if 0
   // 0 -> off
   // 1 -> minimum, about 50uS
@@ -89,24 +103,58 @@ int main ( void ) {
   OCR2A = 24;
 #endif
 
+#endif // SERVO1
+
+
+
+
+
+
+#ifdef SERVO2
+  // PWM 2 - OC2B PD6 - Timer 2B
+  // direction -> output
+  DDRD |= (1<<PD6);
+  // timer setup
+  //   0 1 Toggle OC2A on Compare Match
+  TCCR2A &= ~(1<<COM2B1);
+  TCCR2A &= ~(1<<COM2B0);
+  //TCCR2A |= (1<<COM2A0);
+  TCCR2A |= (1<<COM2B1);
+  //   1 0 Clear OC2A on Compare Match
+  //TCCR2A &= ~(1<<COM2A1);
+  //TCCR2A |= (1<<COM2A0);
+  // .. no WGM or clock source control here; there is only 1 timer, so we can't set it differently to above
 #if 1
-  OCR2A = 24;
+  OCR2B = 36; // rest
+  //OCR2B = 28; // about max looking up that we want to do (verified ok)
+  //OCR2B = 40; // about max looking forward/down that we want to do (verified ok)
+#endif
+
+#endif // SERVO2
+
+#ifdef SERVO1 // servo 1 (bottom)
   signed char dir = 1;
   signed char pwm = 24;
 #endif
 
+#ifdef SERVO2 // servo 2 (top)
+  unsigned char divider = 0;
+  signed char dir2 = 1;
+  signed char pwm2 = 36;
+#endif
+
   while ( 1 ) {
 
-    PORTD &= ~ (1<<PD6);
-    _delay_ms ( 50 );
+    PORTB &= ~ (1<<PB0);
+    _delay_ms ( 45 );
 
-    PORTD |= (1<<PD6);
-    _delay_ms ( 50 );
+    PORTB |= (1<<PB0);
+    _delay_ms ( 45 );
 
-#if 1
-    if ( pwm == 9 ) {
+#ifdef SERVO1 // servo 1
+    if ( pwm == 9 ) { // 9
       dir = 1;
-    } else if ( pwm == 39 ) {
+    } else if ( pwm == 39 ) { // 39
       dir = -1;
     }
 
@@ -117,6 +165,29 @@ int main ( void ) {
     }
 
     OCR2A = pwm;
+#endif
+
+#ifdef SERVO2 // servo 2
+    if ( divider < 2 ) {
+      divider++;
+      continue;
+    } else {
+      divider = 0;
+    }
+
+    if ( pwm2 == 28 ) { // 28
+      dir2 = 1;
+    } else if ( pwm2 == 40 ) { // 40
+      dir2 = -1;
+    }
+
+    if ( dir2 > 0 ) {
+      pwm2++;
+    } else {
+      pwm2--;
+    }
+
+    OCR2B = pwm2;
 #endif
 
   } // while forever
