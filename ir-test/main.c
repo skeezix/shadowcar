@@ -38,16 +38,18 @@ int main ( void ) {
   // Goal: Use CTC interupt mode (CTC -> Clear on Timer Compare)
   // So a compare matches, it clears to zero and triggers interupt
   TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode 
-  OCR1A = 2000; // number to compare against
+  OCR1A = 800 /*2000*/; // number to compare against
   TIMSK1 |= (1 << OCIE1A); // Enable CTC interrupt 
   TCCR1B |= (1 << CS10); // Set up timer , with no prescaler (works at full MHz of clock)
 
-  // IR transmitter
-  DDRB = (1<<0); // PB0 out
+  // PB0 - IR send0 transmitter
+  // PB1 - indicator LED (hit on receiver0)
+  DDRB = (1<<0) | (1<<1);
   PORTB = (1<<0); // PB0 on
 
   // set up ADC
-  ADMUX = (1<<REFS0) | (1<<ADLAR); // VCC AREF, Left shift, 0000 -> ADC0
+  // PA0 set to -> ADC0
+  ADMUX = (1<<REFS0) /*| (1<<ADLAR)*/; // VCC AREF, Left shift, 0000 -> ADC0
   ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0); // prescaler = 128
 
   // serial setup - logging
@@ -71,13 +73,20 @@ int main ( void ) {
   if ( 1 ) {
     unsigned int last_sec = g_time_s;
     unsigned int last_us = _g_time_us_tick;
-    unsigned char adcv;
+    uint16_t adcv;
 
     while(1) {
 
-#if 0
-      // 100ms has past?
-      if ( _g_time_us_tick - last_us > 1000 ) {
+#if 1
+      // 10ms has past?
+      if ( _g_time_us_tick - last_us > (10/*is 10,000per-sec so this converts to 1/1000th or ms */ * 10/*ms*/ ) ) {
+
+        if ( adc_read ( 0 ) <= 1015 ) {
+          PORTB |= (1<<1);
+        } else {
+          PORTB &= ~(1<<1);
+        }
+
         last_us = _g_time_us_tick;
       } // .1sec tick
 #endif
@@ -85,11 +94,9 @@ int main ( void ) {
       // one second has past? update lcd
       if ( g_time_s != last_sec ) {
 
-        PORTB ^= (1<<0);
-
         adcv = adc_read ( 0 );
 
-        sprintf ( textbuf, "poink %d -> adc %d %d\n", g_time_s, adcv, PORTB );
+        sprintf ( textbuf, "poink %d -> adc %d %d -> %s\n", g_time_s, adcv, PORTB, adcv > 1016 ? "" : "HIT" );
         uart0_send ( textbuf );
 
         last_sec = g_time_s;
@@ -118,7 +125,7 @@ ISR(TIMER1_COMPA_vect)
 
   // bump 'seconds' counter as well
   _g_time_us_tick++;
-  if ( _g_time_us_tick > /*10000*/ 2500 ) {
+  if ( _g_time_us_tick > 10000 ) {
     _g_time_us_tick = 0;
     g_time_s ++;
   }
