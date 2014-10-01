@@ -1,0 +1,15 @@
+mcu: atmega644
+optional: atmega programming header
+--> put the atmega power on both sides
+--> AVCC is not needed, code configures it to use VCC as source
+
+transmitter:
+PB0  (pin1) -> IR transmitter (clear) -> 120 ohm -> ground
+
+IR hit indicator:
+PB1 (pin2) -> LED -> 220 ohm -> ground
+
+IR receiver:
+ADC0 (PA0) (pin 40) -> IR receiver positive
+IR positive -> 10K pullup to 5V -- give it some power
+IR negative -> 220 ohm -> ground -- current limiting resistor
