@@ -15,6 +15,7 @@ volatile unsigned int g_timer_us = 0; // will overflow and cycle after 6 seconds
 volatile unsigned int g_time_s = 0;   // will overflow after 16 hours
 volatile unsigned int _g_time_us_tick = 0; // internal ticker to count seconds passage; ms accrue since last sec bump
 
+#define IR_HIT_THRESH 1014
 
 void serial_setup ( void );
 void uart0_send ( char *s );
@@ -81,7 +82,7 @@ int main ( void ) {
       // 10ms has past?
       if ( _g_time_us_tick - last_us > (10/*is 10,000per-sec so this converts to 1/1000th or ms */ * 10/*ms*/ ) ) {
 
-        if ( adc_read ( 0 ) <= 1015 ) {
+        if ( adc_read ( 0 ) <= IR_HIT_THRESH ) {
           PORTB |= (1<<1);
         } else {
           PORTB &= ~(1<<1);
@@ -96,7 +97,7 @@ int main ( void ) {
 
         adcv = adc_read ( 0 );
 
-        sprintf ( textbuf, "poink %d -> adc %d %d -> %s\n", g_time_s, adcv, PORTB, adcv > 1016 ? "" : "HIT" );
+        sprintf ( textbuf, "poink %d -> adc %d %d -> %s\n", g_time_s, adcv, PORTB, adcv > IR_HIT_THRESH ? "" : "HIT" );
         uart0_send ( textbuf );
 
         last_sec = g_time_s;
