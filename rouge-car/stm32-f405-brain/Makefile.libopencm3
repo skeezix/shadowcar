@@ -28,8 +28,6 @@ OBJDUMP		= $(PREFIX)-objdump
 GDB		= $(PREFIX)-gdb
 FLASH		= $(shell which st-flash)
 
-APPOBJS = lib_serial.o MPU6050.o lib_mpu6050_i2c.o skeelib.o
-
 TOOLCHAIN_DIR ?= /home/skeezix/archive/devo/toolkits/stm32/libopencm3
 ifeq ($(wildcard $(TOOLCHAIN_DIR)/lib/libopencm3_stm32f4.a),)
 ifneq ($(strip $(shell which $(CC))),)
@@ -54,7 +52,7 @@ LDFLAGS		+= --static -lc -lnosys -L$(TOOLCHAIN_DIR)/lib \
 			 -L$(TOOLCHAIN_DIR)/lib/stm32/f4 \
 		   -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections \
 		   -mthumb -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
-OBJS		+= $(BINARY).o stm32f4xx_rcc.o stm32f4_misc.o stm32f4xx_gpio.o stm32f4xx_i2c.o stm32f4xx_usart.o ${APPOBJS}
+OBJS		+= $(BINARY).o stm32f4xx_rcc.o stm32f4_misc.o stm32f4xx_gpio.o stm32f4xx_i2c.o stm32f4xx_usart.o stm32f4xx_tim.o ${APPOBJS}
 
 OOCD		?= openocd
 OOCD_INTERFACE	?= stlink-v2

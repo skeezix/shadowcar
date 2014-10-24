@@ -3,6 +3,7 @@
 LCM3EX_BASE=/home/skeezix/archive/devo/toolkits/stm32/libopencm3-examples/examples/stm32/f4/
 
 BINARY = rouge
+APPOBJS = lib_serial.o MPU6050.o lib_mpu6050_i2c.o skeelib.o rouge_cm3.o lib_pwm_motor.o balancer.o
 
 LDSCRIPT = ${LCM3EX_BASE}/stm32f4-discovery/stm32f4-discovery.ld
 
