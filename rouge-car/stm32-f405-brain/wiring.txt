@@ -1,0 +1,10 @@
+
+STM32F405 -> L298
+
+PC8, PC9 -> EN1, EN2    PWM for left, right for speed of each side
+PA14, PA15 -> fwd, back on left
+PC10, PC11 -> fwd, back on right
+
+mpu6050:
+- VDD and VIO 3.3V
+- i2c hookup
